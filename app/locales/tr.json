@@ -318,5 +318,19 @@
   "admin_js_unknown_error": "Bilinmeyen hata",
   "admin_js_guest_password_set_placeholder": "Misafir şifresi ayarlandı (gösterilmiyor)",
   "admin_js_set_guest_password_placeholder": "Misafir şifresi belirle",
-  "admin_js_save_settings_fail_status": "Ayarlar kaydedilemedi: Durum {{statusCode}}"
+  "admin_js_save_settings_fail_status": "Ayarlar kaydedilemedi: Durum {{statusCode}}",
+
+  "guest_auth_not_required": "Mevcut modda misafir doğrulaması gerekmiyor.",
+  "guest_password_incorrect": "Yanlış misafir şifresi.",
+
+  "admin_api_key_is_required": "Anahtar gerekli",
+  "admin_api_keys_are_required": "Anahtarlar gerekli",
+  "admin_api_key_cannot_be_empty": "Anahtar boş olamaz",
+  "admin_api_provide_keys_to_detect": "Lütfen tespit edilecek anahtarların bir listesini sağlayın",
+  "admin_api_detection_failed": "Tespit başarısız: ",
+  "admin_api_unknown_error": "Bilinmeyen hata",
+  "admin_api_provide_key_results_to_update": "Lütfen güncellenecek anahtar sonuçlarının bir listesini sağlayın",
+  "admin_api_unknown_key": "Bilinmeyen anahtar",
+  "admin_api_processing_update_failed": "Güncelleme işlenirken hata oluştu: ",
+  "admin_api_provide_keys_to_delete": "Lütfen silinecek anahtarların bir listesini sağlayın"
 }

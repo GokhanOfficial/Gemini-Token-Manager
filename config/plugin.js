@@ -4,8 +4,4 @@ module.exports = {
         enable: true,
         package: "egg-view-nunjucks",
     },
-    static: {
-        enable: true,
-        package: "egg-static",
-    },
 };

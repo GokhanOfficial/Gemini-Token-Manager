@@ -5,19 +5,17 @@ const fs = require("fs").promises;
 const path = require("path");
 
 class AdminController extends Controller {
-    async index() {
-        const { ctx } = this;
-        const config = await ctx.service.config.get();
-        const lang = config.language || "en";
-        const translationsPath = path.join(ctx.app.baseDir, "app", "locales", `${lang}.json`);
+    async _loadTranslations(ctx) {
+        const appConfig = await ctx.service.config.get();
+        const currentLang = ctx.query.lang || appConfig.language || "en";
+        const translationsPath = path.join(ctx.app.baseDir, "app", "locales", `${currentLang}.json`);
         let translations = {};
         try {
             const fileContent = await fs.readFile(translationsPath, "utf-8");
             translations = JSON.parse(fileContent);
         } catch (error) {
-            ctx.logger.error(`Failed to load translations for ${lang}:`, error);
-            // Fallback to English if the selected language file is not found or corrupted
-            if (lang !== "en") {
+            ctx.logger.error(`Failed to load translations for ${currentLang}:`, error);
+            if (currentLang !== "en") {
                 const fallbackPath = path.join(ctx.app.baseDir, "app", "locales", "en.json");
                 try {
                     const fallbackContent = await fs.readFile(fallbackPath, "utf-8");
@@ -27,7 +25,34 @@ class AdminController extends Controller {
                 }
             }
         }
-        await ctx.render("admin.html", { translations, lang, config });
+        return translations;
+    }
+
+    async index() {
+        const { ctx } = this;
+        const appConfig = await ctx.service.config.get();
+        // Allow language override from query parameter
+        const currentLang = ctx.query.lang || appConfig.language || "en";
+        const translationsPath = path.join(ctx.app.baseDir, "app", "locales", `${currentLang}.json`);
+        let translations = {};
+        try {
+            const fileContent = await fs.readFile(translationsPath, "utf-8");
+            translations = JSON.parse(fileContent);
+        } catch (error) {
+            ctx.logger.error(`Failed to load translations for ${currentLang}:`, error);
+            // Fallback to English if the selected language file is not found or corrupted
+            if (currentLang !== "en") {
+                const fallbackPath = path.join(ctx.app.baseDir, "app", "locales", "en.json");
+                try {
+                    const fallbackContent = await fs.readFile(fallbackPath, "utf-8");
+                    translations = JSON.parse(fallbackContent);
+                    // currentLang = "en"; // This line was commented out as it might be confusing if query.lang was specific
+                } catch (fallbackError) {
+                    ctx.logger.error("Failed to load fallback English translations:", fallbackError);
+                }
+            }
+        }
+        await ctx.render("admin.html", { translations, currentLang, config: appConfig });
     }
 
     async getConfig() {
@@ -52,12 +77,13 @@ class AdminController extends Controller {
     async addKey() {
         const { ctx } = this;
         const { key, balance = 0 } = ctx.request.body;
+        const translations = await this._loadTranslations(ctx);
 
         if (!key) {
             ctx.status = 400;
             ctx.body = {
                 success: false,
-                message: "Key is required",
+                message: translations.admin_api_key_is_required || "Key is required",
             };
             return;
         }
@@ -69,12 +95,13 @@ class AdminController extends Controller {
     async addKeysBulk() {
         const { ctx } = this;
         const { keys } = ctx.request.body;
+        const translations = await this._loadTranslations(ctx);
 
         if (!keys) {
             ctx.status = 400;
             ctx.body = {
                 success: false,
-                message: "Keys are required",
+                message: translations.admin_api_keys_are_required || "Keys are required",
             };
             return;
         }
@@ -95,12 +122,13 @@ class AdminController extends Controller {
     async deleteKey() {
         const { ctx } = this;
         const { key } = ctx.request.body;
+        const translations = await this._loadTranslations(ctx);
 
         if (!key) {
             ctx.status = 400;
             ctx.body = {
                 success: false,
-                message: "Key is required",
+                message: translations.admin_api_key_is_required || "Key is required",
             };
             return;
         }
@@ -112,12 +140,13 @@ class AdminController extends Controller {
     async updateKeyBalance() {
         const { ctx } = this;
         const { key } = ctx.request.body;
+        const translations = await this._loadTranslations(ctx);
 
         if (!key) {
             ctx.status = 400;
             ctx.body = {
                 success: false,
-                message: "密钥不能为空",
+                message: translations.admin_api_key_cannot_be_empty || "Key cannot be empty",
             };
             return;
         }
@@ -144,12 +173,13 @@ class AdminController extends Controller {
     async updateKeysBalance() {
         const { ctx } = this;
         const { keys } = ctx.request.body;
+        const translations = await this._loadTranslations(ctx);
 
         if (!keys || !Array.isArray(keys) || keys.length === 0) {
             ctx.status = 400;
             ctx.body = {
                 success: false,
-                message: "请提供要检测的密钥列表",
+                message: translations.admin_api_provide_keys_to_detect || "Please provide a list of keys to detect",
             };
             return;
         }
@@ -157,17 +187,17 @@ class AdminController extends Controller {
         const now = new Date().toISOString();
         const results = [];
 
-        for (const key of keys) {
+        for (const key_item of keys) { // renamed key to key_item to avoid conflict with translations.key
             try {
-                const result = await ctx.service.proxy.checkKeyValidity(key);
+                const result = await ctx.service.proxy.checkKeyValidity(key_item);
                 await ctx.service.key.updateKeyBalance(
-                    key,
+                    key_item,
                     result.balance,
                     result.isValid ? null : result.message
                 );
 
                 results.push({
-                    key,
+                    key: key_item,
                     success: true,
                     isValid: result.isValid,
                     balance: result.balance,
@@ -176,12 +206,12 @@ class AdminController extends Controller {
                 });
             } catch (error) {
                 results.push({
-                    key,
+                    key: key_item,
                     success: false,
                     isValid: false,
                     balance: 0,
                     lastUpdated: now,
-                    message: `检测失败: ${error.message || "未知错误"}`,
+                    message: `${translations.admin_api_detection_failed || "Detection failed: "}${error.message || translations.admin_api_unknown_error || "Unknown error"}`,
                 });
             }
         }
@@ -196,13 +226,14 @@ class AdminController extends Controller {
 
     async batchUpdateKeys() {
         const { ctx } = this;
-        const { results } = ctx.request.body;
+        const { results: batchResults } = ctx.request.body; // Renamed results to batchResults
+        const translations = await this._loadTranslations(ctx);
 
-        if (!results || !Array.isArray(results) || results.length === 0) {
+        if (!batchResults || !Array.isArray(batchResults) || batchResults.length === 0) {
             ctx.status = 400;
             ctx.body = {
                 success: false,
-                message: "请提供要更新的密钥结果列表",
+                message: translations.admin_api_provide_key_results_to_update || "Please provide a list of key results to update",
             };
             return;
         }
@@ -210,12 +241,12 @@ class AdminController extends Controller {
         const now = new Date().toISOString();
         const updateResults = [];
 
-        for (const result of results) {
+        for (const result of batchResults) {
             try {
                 if (!result.key) {
                     updateResults.push({
                         success: false,
-                        message: "密钥不能为空",
+                        message: translations.admin_api_key_cannot_be_empty || "Key cannot be empty",
                     });
                     continue;
                 }
@@ -229,9 +260,9 @@ class AdminController extends Controller {
                 });
             } catch (error) {
                 updateResults.push({
-                    key: result.key || "未知密钥",
+                    key: result.key || translations.admin_api_unknown_key || "Unknown key",
                     success: false,
-                    message: `处理更新失败: ${error.message || "未知错误"}`,
+                    message: `${translations.admin_api_processing_update_failed || "Processing update failed: "}${error.message || translations.admin_api_unknown_error || "Unknown error"}`,
                 });
             }
         }
@@ -251,10 +282,11 @@ class AdminController extends Controller {
     async deleteKeys() {
         const { ctx } = this;
         const { keys } = ctx.request.body;
+        const translations = await this._loadTranslations(ctx);
 
         if (!keys || !Array.isArray(keys) || keys.length === 0) {
             ctx.status = 400;
-            ctx.body = { success: false, message: "请提供要删除的密钥列表" };
+            ctx.body = { success: false, message: translations.admin_api_provide_keys_to_delete || "Please provide a list of keys to delete" };
             return;
         }
 
