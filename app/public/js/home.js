@@ -1,4 +1,6 @@
 // 全局变量
+const translations = window.translations || {};
+const currentLang = window.currentLang || 'en';
 let allKeys = [];
 let currentPage = 1;
 let pageSize = 12;
@@ -56,21 +58,33 @@ document.querySelectorAll(".copy-btn").forEach(btn => {
             .then(() => {
                 // 成功复制后的视觉反馈
                 this.classList.add("copied");
-                this.innerText = "已复制";
+                this.innerText = translations.home_js_copied_text || "Copied";
 
                 // 恢复原始状态
                 setTimeout(() => {
                     this.classList.remove("copied");
-                    this.innerHTML = "复制代码";
-                    this.insertAdjacentHTML("afterbegin", "<span></span>");
+                    this.innerHTML = translations.home_js_copy_code_text || "Copy Code";
+                    // If the original button had an icon/span, it should be preserved or re-added if translations don't include HTML
+                    // For simplicity, assuming text-only or the translation key includes necessary HTML
+                    if (!this.querySelector('span') && (translations.home_js_copy_code_text || "Copy Code").includes('span')) {
+                         //This part is tricky, if the original had an icon, it might be better to store original innerHTML
+                    } else if (!this.querySelector('span') && !(translations.home_js_copy_code_text || "Copy Code").includes('span')) {
+                        // If no span and translation is text, this is fine.
+                        // If original had a span and translation is text, the span is lost.
+                        // A robust way would be to have separate elements for icon and text.
+                        // For now, let's assume the translation key or original setup handles icons.
+                        // A simple fallback if the original had a span and the translation doesn't:
+                        // if (this.dataset.originalHTML && !this.innerHTML.includes("span")) this.innerHTML = this.dataset.originalHTML.replace(/>[^<]+</, `>${translations.home_js_copy_code_text || "Copy Code"}<`);
+                        // This is getting complex for a simple replacement. Let's stick to text replacement for now.
+                    }
                 }, 2000);
 
                 // 显示全局通知
-                showToast("代码已复制到剪贴板");
+                showToast(translations.home_js_code_copied_toast || "Code copied to clipboard");
             })
             .catch(err => {
                 console.error("复制失败:", err);
-                showToast("复制失败，请手动复制", true);
+                showToast(translations.home_js_copy_failed_toast_manual || "Copy failed, please copy manually", true);
             });
     });
 });
@@ -84,7 +98,7 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
         <div class="loading">
           <div>
             <span class="loader"></span>
-            <span>加载中...</span>
+            <span>${translations.loading_text || 'Loading...'}</span>
           </div>
         </div>
       `;
@@ -114,16 +128,16 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
                 // 根据访问控制模式显示不同内容
                 if (result.accessControl === "private") {
                     keysContainer.innerHTML =
-                        '<div class="empty-state">此页面仅限管理员访问<br><a href="/admin" style="color: #3498db;">前往管理员登录</a></div>';
+                        `<div class="empty-state">${translations.home_js_admin_only_message || 'This page is for administrators only.<br><a href="/admin" style="color: #3498db;">Go to Admin Login</a>'}</div>`;
                 } else if (result.accessControl === "restricted") {
                     // 显示访客认证弹窗
                     showAuthModal();
                     // 显示需要认证的提示
                     keysContainer.innerHTML = `
               <div class="empty-state">
-                <p>需要访客密码才能查看内容</p>
+                <p>${translations.home_js_guest_password_required || 'Guest password required to view content'}</p>
                 <button id="show-auth-button" style="margin-top: 20px; background: #3498db; color: white; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-size: 14px; transition: all 0.3s ease;">
-                  点击认证
+                  ${translations.home_js_click_to_authenticate || 'Click to Authenticate'}
                 </button>
               </div>
             `;
@@ -140,7 +154,7 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
         }
 
         if (!response.ok) {
-            throw new Error(`服务器响应错误: ${response.status}`);
+            throw new Error(`${translations.home_js_server_error_prefix || 'Server response error: '}${response.status}`);
         }
 
         const result = await response.json();
@@ -150,7 +164,7 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
             renderKeys();
             updateCountsWithAnimation();
         } else {
-            throw new Error(result.message || "加载密钥失败");
+            throw new Error(result.message || (translations.home_js_load_keys_failed || "Failed to load keys"));
         }
     } catch (error) {
         console.error("加载密钥时出错:", error);
@@ -159,8 +173,8 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
             // 显示重试消息
             keysContainer.innerHTML = `
         <div class="empty-state">
-          <p>加载失败: ${error.message}</p>
-          <p>正在重试... (剩余 ${retryCount} 次)</p>
+          <p>${translations.home_js_load_failed_prefix || 'Load failed: '}${error.message}</p>
+          <p>${translations.home_js_retrying_prefix || 'Retrying... ('}${retryCount}${translations.home_js_retrying_suffix || ' attempts left)'}</p>
           <div class="loader" style="display: inline-block; margin-top: 10px; border-top-color: #3498db;"></div>
         </div>
       `;
@@ -171,9 +185,9 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
             // 所有重试都失败了，显示最终错误并提供刷新按钮
             keysContainer.innerHTML = `
         <div class="empty-state">
-          <p>加载失败: ${error.message}</p>
+          <p>${translations.home_js_load_failed_prefix || 'Load failed: '}${error.message}</p>
           <button id="retry-button" style="margin-top: 15px; background: #3498db; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer;">
-            刷新重试
+            ${translations.home_js_refresh_retry_button || 'Refresh and Retry'}
           </button>
         </div>
       `;
@@ -188,7 +202,7 @@ async function loadKeys(retryCount = 3, retryDelay = 1500) {
               <div class="loading">
                 <div>
                   <span class="loader"></span>
-                  <span>加载中...</span>
+                  <span>${translations.loading_text || 'Loading...'}</span>
                 </div>
               </div>
             `;
@@ -207,14 +221,14 @@ async function getPageSize(retryCount = 2) {
     try {
         const response = await fetch("/admin/api/pageSize");
         if (!response.ok) {
-            throw new Error(`服务器响应错误: ${response.status}`);
+            throw new Error(`${translations.home_js_server_error_prefix || 'Server response error: '}${response.status}`);
         }
 
         const result = await response.json();
         if (result.success) {
             return parseInt(result.data) || 12; // 确保有默认值
         } else {
-            throw new Error(result.message || "无法获取页面配置");
+            throw new Error(result.message || (translations.home_js_get_page_config_failed || "Failed to get page configuration"));
         }
     } catch (error) {
         console.warn("加载页面大小配置时出错:", error);
@@ -238,10 +252,11 @@ function renderKeys() {
             const date = new Date(dateString);
             // 检查日期是否有效
             if (isNaN(date.getTime())) {
-                return "时间未知";
+                return translations.home_js_time_unknown || "Time unknown";
             }
             // 指定使用24小时制格式
-            return date.toLocaleString("zh-CN", {
+            const localeForDate = currentLang === 'tr' ? 'tr-TR' : (currentLang === 'en' ? 'en-US' : 'zh-CN');
+            return date.toLocaleString(localeForDate, {
                 year: "numeric",
                 month: "2-digit",
                 day: "2-digit",
@@ -252,15 +267,15 @@ function renderKeys() {
             });
         } catch (e) {
             console.error("日期格式化错误:", e);
-            return "时间未知";
+            return translations.home_js_time_unknown || "Time unknown";
         }
     }
 
     if (allKeys.length === 0) {
-        keysContainer.innerHTML = '<div class="empty-state">暂无API Keys</div>';
+        keysContainer.innerHTML = `<div class="empty-state">${translations.home_js_no_api_keys || 'No API Keys available'}</div>`;
         prevPageBtn.disabled = true;
         nextPageBtn.disabled = true;
-        pageInfo.textContent = "第 0 页";
+        pageInfo.textContent = `${translations.page_info_prefix || 'Page'} 0${translations.page_info_suffix || ''}`;
         return;
     }
 
@@ -285,7 +300,7 @@ function renderKeys() {
     // 更新分页控件
     prevPageBtn.disabled = currentPage === 1;
     nextPageBtn.disabled = currentPage === totalPages;
-    pageInfo.textContent = `第 ${currentPage} / ${totalPages} 页`;
+    pageInfo.textContent = `${translations.page_info_prefix || 'Page'} ${currentPage}${translations.home_js_page_info_middle || ' / '}${totalPages}${translations.page_info_suffix || ''}`;
 
     // 渲染密钥
     let html = "";
@@ -303,7 +318,7 @@ function renderKeys() {
 
         if (balance <= 0) {
             balanceClass = "zero";
-            balanceText = "无效";
+            balanceText = translations.home_js_balance_invalid || "Invalid";
         } else if (balance > 0 && balance <= 7) {
             balanceClass = "low";
             balanceText = balance;
@@ -323,7 +338,7 @@ function renderKeys() {
             <div class="key-text">${displayKey}</div>
             <div class="key-balance ${balanceClass}">${balanceText}</div>
             <div class="key-update-time">
-              ${keyObj.lastUpdated ? "更新于 " + formatDate(keyObj.lastUpdated) : "未更新"}
+              ${keyObj.lastUpdated ? (translations.home_js_updated_at_prefix || 'Updated at ') + formatDate(keyObj.lastUpdated) : (translations.home_js_not_updated || 'Not updated')}
             </div>
         </div>
       `;
@@ -538,19 +553,19 @@ function copyKey(key) {
                 targetElement.classList.add("copy-success");
 
                 // 显示通知
-                showToast("已复制到剪贴板");
+                showToast(translations.home_js_code_copied_toast || "Code copied to clipboard");
 
                 // 一段时间后移除动画类
                 setTimeout(() => {
                     targetElement.classList.remove("copy-success");
                 }, 1500);
             } else {
-                showToast("已复制到剪贴板");
+                showToast(translations.home_js_code_copied_toast || "Code copied to clipboard");
             }
         })
         .catch(err => {
             console.error("复制失败: ", err);
-            showToast("复制失败", true);
+            showToast(translations.home_js_copy_failed_toast || "Copy failed", true);
         });
 }
 
@@ -602,7 +617,7 @@ async function checkAccessControl() {
       <div class="loading">
         <div>
           <span class="loader"></span>
-          <span>检查访问权限...</span>
+          <span>${translations.home_js_checking_access || 'Checking access permissions...'}</span>
         </div>
       </div>
     `;
@@ -633,9 +648,9 @@ async function checkAccessControl() {
                         // 清空加载中显示，同时添加一个认证按钮
                         keysContainer.innerHTML = `
               <div class="empty-state">
-                <p>请输入访客密码继续访问</p>
+                <p>${translations.home_js_enter_guest_password_prompt || 'Please enter guest password to continue'}</p>
                 <button id="show-auth-button" style="margin-top: 20px; background: #3498db; color: white; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-size: 14px; transition: all 0.3s ease;">
-                  点击认证
+                  ${translations.home_js_click_to_authenticate || 'Click to Authenticate'}
                 </button>
               </div>
             `;
@@ -653,10 +668,10 @@ async function checkAccessControl() {
         }
     } catch (error) {
         console.error("检查访问控制状态时出错:", error);
-        showToast("无法获取页面访问状态", true);
+        showToast(translations.home_js_get_access_status_failed || "Failed to get page access status", true);
         // 显示错误信息
         keysContainer.innerHTML =
-            '<div class="empty-state">无法获取访问控制状态<br>请刷新页面重试</div>';
+            `<div class="empty-state">${translations.home_js_get_access_control_failed_message || 'Failed to get access control status.<br>Please refresh the page to try again.'}</div>`;
     }
 }
 
@@ -678,7 +693,7 @@ async function verifyGuestPassword() {
     const errorMsg = document.getElementById("auth-error");
 
     if (!password) {
-        errorMsg.textContent = "请输入密码";
+        errorMsg.textContent = translations.home_js_auth_enter_password_error || "Please enter password";
         errorMsg.style.display = "block";
         return;
     }
@@ -686,9 +701,9 @@ async function verifyGuestPassword() {
     try {
         // 添加加载状态
         const verifyBtn = document.getElementById("verify-guest-btn");
-        const originalBtnText = verifyBtn.textContent;
+        const originalBtnText = verifyBtn.textContent; // Should be translations.auth_modal_submit
         verifyBtn.disabled = true;
-        verifyBtn.textContent = "验证中...";
+        verifyBtn.textContent = translations.home_js_auth_verifying_button || "Verifying...";
         
         const response = await fetch("/admin/api/verify-guest", {
             method: "POST",
@@ -703,7 +718,7 @@ async function verifyGuestPassword() {
             authToken = data.token;
             localStorage.setItem("guestToken", authToken);
             // 显示一个成功消息
-            showToast("访客认证成功", false);
+            showToast(translations.home_js_auth_success_toast || "Guest authentication successful", false);
             // 关闭弹窗
             document.getElementById("auth-modal").classList.remove("show");
             // 重置输入和错误信息
@@ -713,22 +728,22 @@ async function verifyGuestPassword() {
             loadKeys();
         } else {
             // 认证失败
-            errorMsg.textContent = data.message || "密码不正确";
+            errorMsg.textContent = data.message || (translations.auth_modal_error || "Incorrect password, please try again."); // Using existing key if applicable
             errorMsg.style.display = "block";
             passwordInput.focus();
         }
         
         // 恢复按钮状态
         verifyBtn.disabled = false;
-        verifyBtn.textContent = originalBtnText;
+        verifyBtn.textContent = translations.auth_modal_submit || "Verify"; // Use original translated text
     } catch (error) {
         console.error("验证访客密码时出错:", error);
-        errorMsg.textContent = "验证失败，请重试";
+        errorMsg.textContent = translations.home_js_auth_verify_failed_error || "Verification failed, please try again";
         errorMsg.style.display = "block";
         
         // 恢复按钮状态
         const verifyBtn = document.getElementById("verify-guest-btn");
         verifyBtn.disabled = false;
-        verifyBtn.textContent = "验证";
+        verifyBtn.textContent = translations.auth_modal_submit || "Verify"; // Use original translated text
     }
 }

@@ -13,6 +13,7 @@ class ConfigService {
             access_control: "open",
             guest_password: "linuxdo",
             http_proxy: "",
+            language: "en", // Default language
         };
     }
 
@@ -38,6 +39,7 @@ class ConfigService {
             accessControl: this.config.access_control,
             guestPassword: this.config.guest_password,
             httpProxy: this.config.http_proxy,
+            language: this.config.language,
         };
     }
 
@@ -63,6 +65,7 @@ class ConfigService {
         if (newConfig.pageSize !== undefined) this.config.page_size = newConfig.pageSize;
         if (newConfig.accessControl !== undefined) this.config.access_control = newConfig.accessControl;
         if (newConfig.guestPassword !== undefined) this.config.guest_password = newConfig.guestPassword;
+        if (newConfig.language !== undefined) this.config.language = newConfig.language;
         
         await this.saveConfig();
         return await this.get();

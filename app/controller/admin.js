@@ -1,11 +1,33 @@
 "use strict";
 
 const { Controller } = require("egg");
+const fs = require("fs").promises;
+const path = require("path");
 
 class AdminController extends Controller {
     async index() {
         const { ctx } = this;
-        await ctx.render("admin.html");
+        const config = await ctx.service.config.get();
+        const lang = config.language || "en";
+        const translationsPath = path.join(ctx.app.baseDir, "app", "locales", `${lang}.json`);
+        let translations = {};
+        try {
+            const fileContent = await fs.readFile(translationsPath, "utf-8");
+            translations = JSON.parse(fileContent);
+        } catch (error) {
+            ctx.logger.error(`Failed to load translations for ${lang}:`, error);
+            // Fallback to English if the selected language file is not found or corrupted
+            if (lang !== "en") {
+                const fallbackPath = path.join(ctx.app.baseDir, "app", "locales", "en.json");
+                try {
+                    const fallbackContent = await fs.readFile(fallbackPath, "utf-8");
+                    translations = JSON.parse(fallbackContent);
+                } catch (fallbackError) {
+                    ctx.logger.error("Failed to load fallback English translations:", fallbackError);
+                }
+            }
+        }
+        await ctx.render("admin.html", { translations, lang, config });
     }
 
     async getConfig() {
